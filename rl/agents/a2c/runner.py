@@ -1,14 +1,23 @@
 import numpy as np
 import tensorflow as tf
-
+#引入 NumPy，用於數值計算，主要處理多維數據。
+#引入 TensorFlow，用於實現深度學習模型與訓練。
+-------------------------------------------------------------------------------------
 from pysc2.lib.actions import FunctionCall, FUNCTIONS
 from pysc2.lib.actions import TYPES as ACTION_TYPES
-
+#從 PySC2 導入 FunctionCall（用於表示遊戲動作）與 FUNCTIONS（遊戲中可用的動作函數）。
+#導入 TYPES 作為動作參數的類型集合。
+-------------------------------------------------------------------------------------
 from rl.pre_processing import Preprocessor
 from rl.pre_processing import is_spatial_action, stack_ndarray_dicts
+# 從自定義模組 rl.pre_processing 中導入以下工具：
+# Preprocessor：用於對遊戲的觀測數據進行預處理。
+# is_spatial_action：用於判斷動作參數是否為空間相關。
+# stack_ndarray_dicts：堆疊多個數據字典。
 
+-------------------------------------------------------------------------------------
 
-class A2CRunner():
+class A2CRunner():    #定義 A2CRunner 類別，用於執行 A2C 強化學習的核心訓練邏輯
   def __init__(self,
                agent,
                envs,
@@ -16,6 +25,14 @@ class A2CRunner():
                train=True,
                n_steps=8,
                discount=0.99):
+# 定義類別初始化方法，接收以下參數：
+# agent：A2C 代理模型實例。
+# envs：多進程環境實例。
+# summary_writer：用於記錄訓練分數。
+# train：布林值，是否進行訓練。
+# n_steps：每批次的步數。
+# discount：折扣因子，用於計算回報。
+------------------------------------------------------------                 
     """
     Args:
       agent: A2CAgent instance.
@@ -31,29 +48,44 @@ class A2CRunner():
     self.train = train
     self.n_steps = n_steps
     self.discount = discount
+#將參數值存儲為類別屬性
+------------------------------------------------------------------------
     self.preproc = Preprocessor(self.envs.observation_spec()[0])
+#初始化 Preprocessor，並傳入環境的觀測規格，用於處理原始觀測數據。
+-------------------------------------------------------------------------
     self.episode_counter = 0
     self.cumulative_score = 0.0
-
+#初始化累計分數與回合計數器。
+-------------------------------------------------------------------------
   def reset(self):
     obs_raw = self.envs.reset()
     self.last_obs = self.preproc.preprocess_obs(obs_raw)
-
+# 定義 reset 方法：
+#   重置環境並獲取原始觀測數據。
+#   使用 Preprocessor 對觀測數據進行預處理，存儲於 self.last_obs。
+--------------------------------------------------------------------------
   def get_mean_score(self):
     return self.cumulative_score / self.episode_counter
 
-  def _summarize_episode(self, timestep):
+#計算累計分數的平均值，用於評估代理模型的表現。
+---------------------------------------------------------------------------
+  def _summarize_episode(self, timestep):     #定義內部方法，用於總結每一回合。
     score = timestep.observation["score_cumulative"][0]
+    #從觀測數據中提取總分數。
+----------------------------------------------------------------------------
     if self.summary_writer is not None:
       summary = tf.Summary()
       summary.value.add(tag='sc2/episode_score', simple_value=score)
       self.summary_writer.add_summary(summary, self.episode_counter)
-
+#如果 summary_writer 不為空，則將分數記錄到 TensorFlow 日誌中（TF 1.x 方式）。
+----------------------------------------------------------------------------
     print("episode %d: score = %f" % (self.episode_counter, score))
     self.episode_counter += 1
     return score
+#在終端輸出回合數與分數，並更新回合計數器。
 
-  def run_batch(self, train_summary=False):
+-----------------------------------------------------------------------------
+  def run_batch(self, train_summary=False):    #定義 run_batch 方法，用於執行多個步驟，並根據需要進行訓練。
     """Collect trajectories for a single batch and train (if self.train).
 
     Args:
@@ -69,28 +101,46 @@ class A2CRunner():
     all_obs = []
     all_actions = []
     all_scores = []
-
+# #初始化用於存儲數據的陣列與列表：
+#   values：存放價值函數估計。
+#   rewards：存放每步的獎勵。
+#   dones：存放每步是否完成。
+#   all_obs/all_actions：存放所有觀測數據與動作。
+#   all_scores：存放所有分數。
+-----------------------------------------------------------------
     last_obs = self.last_obs
-
+#獲取之前的觀測數據。
+-----------------------------------------------------------------
     for n in range(self.n_steps):
       actions, value_estimate = self.agent.step(last_obs)
       actions = mask_unused_argument_samples(actions)
+# 循環執行 n_steps：
+#   獲取代理模型的動作與價值估計。
+#   遮蔽未使用的參數。
+------------------------------------------------------------------
       size = last_obs['screen'].shape[1:3]
 
       values[n, :] = value_estimate
       all_obs.append(last_obs)
       all_actions.append(actions)
-
+#存儲價值估計與觀測數據。
+------------------------------------------------------------------
       pysc2_actions = actions_to_pysc2(actions, size)
       obs_raw = self.envs.step(pysc2_actions)
       last_obs = self.preproc.preprocess_obs(obs_raw)
+
+#將動作轉換為 PySC2 格式，執行環境步驟，並預處理新觀測數據。
+------------------------------------------------------------------
       rewards[n, :] = [t.reward for t in obs_raw]
       dones[n, :] = [t.last() for t in obs_raw]
-
+#提取回報與完成標記。
+  ----------------------------------------------------------------
       for t in obs_raw:
         if t.last():
           score = self._summarize_episode(t)
           self.cumulative_score += score
+  #如果回合完成，總結分數並更新累計分數。
+------------------------------------------------------------------
 
     self.last_obs = last_obs
 
