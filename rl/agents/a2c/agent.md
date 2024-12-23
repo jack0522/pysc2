@@ -69,14 +69,14 @@ def __init__(self,
 #### 1.功能:
 - 初始化 A2C 代理，設置網絡、優化器和訓練相關參數。
 #### 2.參數:
--`sess`：TensorFlow 會話，用於執行計算圖。
+- `sess`：TensorFlow 會話，用於執行計算圖。
 - `network_cls`：網絡類型，默認為 `FullyConv`。
--`network_data_format`：數據格式，支持 `NCHW` 和 `NHWC`。
--`value_loss_weight`：價值損失的權重。
--`entropy_weight`：策略熵的權重，用於鼓勵探索。。
--`learning_rate`：學習率。
--`max_gradient_norm`：梯度裁剪的最大範圍。
--`max_to_keep`：保存的最大檢查點數量。
+- `network_data_format`：數據格式，支持 `NCHW` 和 `NHWC`。
+- `value_loss_weight`：價值損失的權重。
+- `entropy_weight`：策略熵的權重，用於鼓勵探索。。
+- `learning_rate`：學習率。
+- `max_gradient_norm`：梯度裁剪的最大範圍。
+- `max_to_keep`：保存的最大檢查點數量。
 
 
 
